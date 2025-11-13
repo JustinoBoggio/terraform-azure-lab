@@ -1,0 +1,1 @@
+# Variables to be used in the Terraform configuration for the Azure lab environment
