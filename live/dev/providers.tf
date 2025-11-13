@@ -1,5 +1,6 @@
 terraform {
   required_version = ">= 1.9.0"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -11,8 +12,6 @@ terraform {
 provider "azurerm" {
   features {}
 
-  # Force OIDC in CI
-  use_oidc            = true
-  use_cli             = false
+  # Use Azure AD for storage APIs when needed
   storage_use_azuread = true
 }

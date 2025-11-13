@@ -1,7 +1,7 @@
 locals {
-  location = "eastus"
-  env      = "dev"
-
+  location  = "eastus"
+  env       = "dev"
+  tenant_id = "004b1179-227e-44f2-b759-e9f05b015b7b"
   common_tags = {
     environment = local.env
     owner       = "justino"
@@ -34,6 +34,34 @@ module "vnet_core" {
       address_prefixes = ["10.10.2.0/24"]
     }
   }
+
+  tags = local.common_tags
+}
+
+# Shared Log Analytics workspace for dev
+module "log_analytics_core" {
+  source = "../../modules/log-analytics"
+
+  name                = "law-core-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+
+  retention_in_days = 30
+  tags              = local.common_tags
+}
+
+# Shared Key Vault for dev (RBAC enabled)
+module "kv_core" {
+  source = "../../modules/key-vault"
+
+  name                = "kv-core-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  tenant_id           = local.tenant_id
+
+  sku_name                   = "standard"
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = false
 
   tags = local.common_tags
 }
