@@ -6,7 +6,7 @@ locals {
 
   common_tags = {
     environment = local.env
-    owner       = "justino"
+    owner       = local.owner
     project     = "terraform-azure-lab"
   }
 }
