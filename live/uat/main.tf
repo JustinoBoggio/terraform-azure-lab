@@ -2,6 +2,7 @@ locals {
   location  = "eastus"
   env       = "uat"
   tenant_id = "004b1179-227e-44f2-b759-e9f05b015b7b"
+  owner       = "justino"
 
   common_tags = {
     environment = local.env
@@ -55,7 +56,7 @@ module "log_analytics_core" {
 module "kv_core" {
   source = "../../modules/key-vault"
 
-  name                = "kv-core-${local.env}"
+  name                = "kv-core-${local.env}-${local.owner}"
   location            = local.location
   resource_group_name = module.rg_core.name
   tenant_id           = local.tenant_id
