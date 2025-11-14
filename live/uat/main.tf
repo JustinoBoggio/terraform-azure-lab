@@ -67,3 +67,25 @@ module "kv_core" {
 
   tags = local.common_tags
 }
+
+module "diag_kv_core" {
+  source = "../../modules/diagnostic-settings"
+
+  name                       = "ds-kv-core-${local.env}"
+  target_resource_id         = module.kv_core.id
+  log_analytics_workspace_id = module.log_analytics_core.id
+
+  logs = [
+    {
+      category = "AuditEvent"
+      enabled  = true
+    }
+  ]
+
+  metrics = [
+    {
+      category = "AllMetrics"
+      enabled  = true
+    }
+  ]
+}

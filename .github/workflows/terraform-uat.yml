@@ -1,32 +1,30 @@
-name: Terraform DEV
+name: Terraform UAT
 
 on:
   push:
     branches:
       - main
     paths:
-      - "live/dev/**"
+      - "live/uat/**"
       - "modules/**"
   pull_request:
     branches:
       - main
     paths:
-      - "live/dev/**"
+      - "live/uat/**"
       - "modules/**"
 
 permissions:
-    id-token: write
-    contents: read
+  id-token: write
+  contents: read
 
 jobs:
-  terraform-dev:
+  terraform-uat:
     runs-on: ubuntu-latest
-
-
 
     defaults:
       run:
-        working-directory: live/dev
+        working-directory: live/uat
 
     steps:
       - name: Checkout repository
