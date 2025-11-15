@@ -137,3 +137,17 @@ module "nginx_ingress" {
   release_name  = "ingress-nginx"
   replica_count = 2
 }
+
+module "sample_app" {
+  source      = "../../modules/sample-app"
+  environment = local.env
+  owner       = local.owner
+
+  namespace            = "apps"
+  app_name             = "hello-api"
+  image                = "nginxdemos/hello"
+  replicas             = 2
+  container_port       = 80
+  service_account_name = "app-deployer"
+  host                 = "hello-uat.local"
+}
