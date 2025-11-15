@@ -120,3 +120,10 @@ module "kube_baseline" {
   environment = local.env
   owner       = local.owner
 }
+
+module "kube_rbac_apps" {
+  source      = "../../modules/kube-rbac"
+  environment = local.env
+  namespace   = "apps"
+  owner       = local.owner
+}
