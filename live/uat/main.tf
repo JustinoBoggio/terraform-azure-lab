@@ -114,3 +114,9 @@ module "aks_core" {
 
   tags = local.common_tags
 }
+
+module "kube_baseline" {
+  source      = "../../modules/kube-baseline"
+  environment = local.env
+  owner       = local.owner
+}
