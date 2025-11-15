@@ -6,6 +6,11 @@ output "vnet_id" {
   value = azurerm_virtual_network.this.id
 }
 
+output "subnet_ids" {
+  description = "Map of subnet names to their ids"
+  value       = { for s in azurerm_subnet.this : s.name => s.id }
+}
+
 output "subnets" {
   value = {
     for k, s in azurerm_subnet.this : k => {
