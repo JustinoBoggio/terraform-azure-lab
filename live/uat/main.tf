@@ -114,3 +114,16 @@ module "aks_core" {
 
   tags = local.common_tags
 }
+
+module "kube_baseline" {
+  source      = "../../modules/kube-baseline"
+  environment = local.env
+  owner       = local.owner
+}
+
+module "kube_rbac_apps" {
+  source      = "../../modules/kube-rbac"
+  environment = local.env
+  namespace   = "apps"
+  owner       = local.owner
+}
