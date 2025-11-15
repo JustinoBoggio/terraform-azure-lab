@@ -35,6 +35,9 @@ module "vnet_core" {
     "snet-db" = {
       address_prefixes = ["10.20.2.0/24"]
     }
+    "snet-aks" = {
+      address_prefixes = ["10.20.3.0/24"]
+    }
   }
 
   tags = local.common_tags
@@ -88,4 +91,26 @@ module "diag_kv_core" {
       enabled  = true
     }
   ]
+}
+
+module "aks_core" {
+  source = "../../modules/aks"
+
+  name                = "aks-core-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  dns_prefix          = "aks-core-${local.env}"
+
+  subnet_id                  = module.vnet_core.subnet_ids["snet-aks"]
+  vnet_id                    = module.vnet_core.vnet_id
+  log_analytics_workspace_id = module.log_analytics_core.id
+
+  # kubernetes_version = "1.29.2"
+  node_count          = 1
+  node_vm_size        = "Standard_DC2s_v3"
+  enable_auto_scaling = true
+  min_count           = 1
+  max_count           = 2
+
+  tags = local.common_tags
 }
