@@ -127,3 +127,13 @@ module "kube_rbac_apps" {
   namespace   = "apps"
   owner       = local.owner
 }
+
+module "nginx_ingress" {
+  source      = "../../modules/nginx-ingress"
+  environment = local.env
+  owner       = local.owner
+
+  namespace     = "ingress-nginx"
+  release_name  = "ingress-nginx"
+  replica_count = 2
+}
