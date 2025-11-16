@@ -24,6 +24,8 @@ provider "azurerm" {
   storage_use_azuread = true
 }
 
+data "azurerm_client_config" "current" {}
+
 provider "kubernetes" {
   host                   = module.aks_core.kube_config.host
   client_certificate     = base64decode(module.aks_core.kube_config.client_certificate)
