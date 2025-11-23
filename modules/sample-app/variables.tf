@@ -47,3 +47,8 @@ variable "service_account_name" {
   description = "Service account name used by the application pods"
   default     = "app-deployer"
 }
+
+variable "secret_provider_class_name" {
+  type        = string
+  description = "Name of the SecretProviderClass used to mount Key Vault secrets via CSI"
+}

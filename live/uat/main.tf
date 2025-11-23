@@ -167,11 +167,13 @@ module "sample_app" {
   namespace      = "apps"
   app_name       = "hello-api"
   image          = "nginxdemos/hello"
-  replicas       = 2
+  replicas       = 1
   container_port = 80
-  # service_account_name = "app-deployer"
-  service_account_name = kubernetes_service_account.hello_api.metadata[0].name
-  host                 = "hello-uat.local"
+
+  service_account_name       = kubernetes_service_account.hello_api.metadata[0].name
+  secret_provider_class_name = "spc-hello-api"
+
+  host = "hello-uat.local"
 }
 
 module "hello_api_identity" {

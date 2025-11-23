@@ -48,6 +48,11 @@ resource "azurerm_kubernetes_cluster" "this" {
     network_policy = "azure"
   }
 
+  key_vault_secrets_provider {
+    secret_rotation_enabled = false
+    # optional settings:
+    # secret_rotation_interval = "2m"
+  }
   #local_account_disabled = true
 
   tags = var.tags
