@@ -200,3 +200,23 @@ resource "azurerm_key_vault_secret" "hello_api_message" {
     azurerm_role_assignment.kv_secrets_officer_current
   ]
 }
+
+module "acr_core" {
+  source = "../../modules/acr"
+
+  # This will result in "acrdevjustino"
+  name                = "acr${local.env}${local.owner}"
+  resource_group_name = module.rg_core.name
+  location            = local.location
+
+  sku           = "Basic"
+  admin_enabled = false
+
+  tags = local.common_tags
+}
+
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  scope                = module.acr_core.id
+  role_definition_name = "AcrPull"
+  principal_id         = module.aks_core.kubelet_identity_object_id
+}
