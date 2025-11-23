@@ -70,6 +70,12 @@ module "kv_core" {
   tags = local.common_tags
 }
 
+resource "azurerm_role_assignment" "kv_secrets_officer_current" {
+  scope                = module.kv_core.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
 module "diag_kv_core" {
   source = "../../modules/diagnostic-settings"
 
@@ -118,6 +124,21 @@ module "kube_baseline" {
   owner       = local.owner
 }
 
+resource "kubernetes_service_account" "hello_api" {
+  metadata {
+    name      = "hello-api-sa"
+    namespace = "apps"
+
+    labels = {
+      "azure.workload.identity/use" = "true"
+    }
+
+    annotations = {
+      "azure.workload.identity/client-id" = module.hello_api_identity.client_id
+    }
+  }
+}
+
 module "kube_rbac_apps" {
   source      = "../../modules/kube-rbac"
   environment = local.env
@@ -140,11 +161,42 @@ module "sample_app" {
   environment = local.env
   owner       = local.owner
 
+  namespace      = "apps"
+  app_name       = "hello-api"
+  image          = "nginxdemos/hello"
+  replicas       = 1
+  container_port = 80
+
+  service_account_name       = kubernetes_service_account.hello_api.metadata[0].name
+  secret_provider_class_name = "spc-hello-api"
+
+  host = "hello-dev.local"
+}
+
+module "hello_api_identity" {
+  source = "../../modules/workload-identity"
+
+  name                = "mi-hello-api-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+
+  kubernetes_oidc_issuer_url = module.aks_core.oidc_issuer_url
+
   namespace            = "apps"
-  app_name             = "hello-api"
-  image                = "nginxdemos/hello"
-  replicas             = 1
-  container_port       = 80
-  service_account_name = "app-deployer"
-  host                 = "hello-dev.local"
+  service_account_name = "hello-api-sa"
+
+  key_vault_id = module.kv_core.id
+  tags         = local.common_tags
+}
+
+resource "azurerm_key_vault_secret" "hello_api_message" {
+  name         = "hello-api-message"
+  value        = "Hello from Key Vault in dev!"
+  key_vault_id = module.kv_core.id
+
+  tags = local.common_tags
+
+  depends_on = [
+    azurerm_role_assignment.kv_secrets_officer_current
+  ]
 }

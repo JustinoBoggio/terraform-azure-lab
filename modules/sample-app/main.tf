@@ -24,11 +24,29 @@ resource "kubernetes_deployment" "app" {
 
     template {
       metadata {
-        labels = local.labels
+        labels = merge(
+          local.labels,
+          {
+            "azure.workload.identity/use" = "true"
+          }
+        )
       }
 
       spec {
         service_account_name = var.service_account_name
+
+        volume {
+          name = "secrets-store-inline"
+
+          csi {
+            driver = "secrets-store.csi.k8s.io"
+            read_only = true
+
+            volume_attributes = {
+              secretProviderClass = var.secret_provider_class_name
+            }
+          }
+        }
 
         container {
           name  = var.app_name
@@ -48,6 +66,12 @@ resource "kubernetes_deployment" "app" {
               cpu    = "500m"
               memory = "512Mi"
             }
+          }
+
+          volume_mount {
+            name       = "secrets-store-inline"
+            mount_path = "/mnt/secrets-store"
+            read_only  = true
           }
         }
       }
