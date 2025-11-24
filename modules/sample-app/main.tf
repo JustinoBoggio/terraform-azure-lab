@@ -56,6 +56,14 @@ resource "kubernetes_deployment" "app" {
             container_port = var.container_port
           }
 
+          dynamic "env" {
+            for_each = var.env_vars
+            content {
+              name  = env.key
+              value = env.value
+            }
+          }
+
           resources {
             requests = {
               cpu    = "100m"

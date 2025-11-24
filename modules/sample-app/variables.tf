@@ -52,3 +52,9 @@ variable "secret_provider_class_name" {
   type        = string
   description = "Name of the SecretProviderClass used to mount Key Vault secrets via CSI"
 }
+
+variable "env_vars" {
+  type        = map(string)
+  description = "Optional environment variables for the application container"
+  default     = {}
+}
