@@ -7,6 +7,7 @@ on:
     paths:
       - "apps/hello-api/**"
       - ".github/workflows/build-hello-api-dev.yml"
+  workflow_dispatch: {}
 
 permissions:
   id-token: write

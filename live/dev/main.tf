@@ -163,7 +163,7 @@ module "sample_app" {
 
   namespace      = "apps"
   app_name       = "hello-api"
-  image          = "nginxdemos/hello"
+  image          = "${module.acr_core.login_server}/hello-api:dev"
   replicas       = 1
   container_port = 80
 
