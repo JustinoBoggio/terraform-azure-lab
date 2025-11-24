@@ -27,6 +27,7 @@ def read_root():
       "environment": ENVIRONMENT,
       "vault_url": KEYVAULT_URL,
       "secret_name": SECRET_NAME,
+      "version": "v2-from-ci"
     }
   except Exception as ex:
     raise HTTPException(status_code=500, detail=f"Error reading secret from Key Vault: {ex}")

@@ -56,6 +56,8 @@ resource "kubernetes_deployment" "app" {
             container_port = var.container_port
           }
 
+          image_pull_policy = "Always"
+
           dynamic "env" {
             for_each = var.env_vars
             content {
