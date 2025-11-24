@@ -55,6 +55,67 @@ module "log_analytics_core" {
   tags              = local.common_tags
 }
 
+resource "azurerm_monitor_action_group" "email_justino_action_group" {
+  name                = "ag-${local.env}-justino-email"
+  resource_group_name = module.rg_core.name
+  short_name          = "${local.env}-email"
+
+  email_receiver {
+    name                    = "justino-email"
+    email_address           = "justinoboggio@hotmail.com"
+    use_common_alert_schema = true
+  }
+
+  tags = local.common_tags
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "pods_restarts_apps" {
+  name                = "alert-pod-restarts-apps-${local.env}"
+  resource_group_name = module.rg_core.name
+  location            = local.location
+
+  display_name = "UAT - Pods with restarts in namespace apps"
+  description  = "Alert when any pod in namespace 'apps' has ContainerRestartCount > 0 in AKS UAT cluster"
+  severity     = 3
+  enabled      = true
+
+  # Scope: Log Analytics workspace of UAT
+  scopes = [
+    module.log_analytics_core.id
+  ]
+
+  evaluation_frequency = "PT5M"  # Every 5 minutes
+  window_duration      = "PT15M" # Look at last 15 minutes
+
+  criteria {
+    query = <<-KQL
+      KubePodInventory
+      | where ClusterName == "aks-core-uat"
+      | where Namespace == "apps"
+      | summarize MaxRestarts = max(ContainerRestartCount)
+      | where MaxRestarts > 0
+    KQL
+
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+
+    failing_periods {
+      number_of_evaluation_periods             = 1
+      minimum_failing_periods_to_trigger_alert = 1
+    }
+  }
+
+  action {
+    action_groups = [
+      azurerm_monitor_action_group.email_justino_action_group.id
+    ]
+  }
+
+  tags = local.common_tags
+}
+
+
 # Shared Key Vault for UAT (RBAC enabled)
 module "kv_core" {
   source = "../../modules/key-vault"
@@ -249,7 +310,6 @@ resource "azurerm_key_vault_secret" "hello_api_message" {
 module "acr_core" {
   source = "../../modules/acr"
 
-  # This will result in "acrdevjustino"
   name                = "acr${local.env}${local.owner}"
   resource_group_name = module.rg_core.name
   location            = local.location
