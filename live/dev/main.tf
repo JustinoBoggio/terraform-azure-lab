@@ -154,6 +154,8 @@ module "nginx_ingress" {
   namespace     = "ingress-nginx"
   release_name  = "ingress-nginx"
   replica_count = 1
+
+  service_type = "ClusterIP"
 }
 
 module "sample_app" {

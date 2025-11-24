@@ -157,6 +157,8 @@ module "nginx_ingress" {
   namespace     = "ingress-nginx"
   release_name  = "ingress-nginx"
   replica_count = 2
+
+  service_type = "LoadBalancer"
 }
 
 module "sample_app" {
