@@ -174,6 +174,12 @@ module "sample_app" {
   secret_provider_class_name = "spc-hello-api"
 
   host = "hello-uat.local"
+
+  env_vars = {
+    KEYVAULT_URL = module.kv_core.vault_uri
+    SECRET_NAME  = "hello-api-message"
+    ENVIRONMENT  = local.env
+  }
 }
 
 module "hello_api_identity" {
