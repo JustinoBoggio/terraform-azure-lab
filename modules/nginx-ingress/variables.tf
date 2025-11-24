@@ -25,3 +25,9 @@ variable "owner" {
   type        = string
   description = "Owner label"
 }
+
+variable "service_type" {
+  type        = string
+  description = "Kubernetes Service type for the ingress controller (ClusterIP, LoadBalancer, NodePort)"
+  default     = "ClusterIP"
+}

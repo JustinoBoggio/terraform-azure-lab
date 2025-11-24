@@ -25,7 +25,7 @@ resource "helm_release" "ingress_nginx" {
       controller = {
         replicaCount = var.replica_count
         service = {
-          type = "ClusterIP"
+          type = var.service_type
         }
         metrics = {
           enabled = true
