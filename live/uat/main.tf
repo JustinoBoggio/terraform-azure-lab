@@ -121,6 +121,40 @@ module "aks_core" {
   tags = local.common_tags
 }
 
+module "diag_aks_core" {
+  source = "../../modules/diagnostic-settings"
+
+  name                       = "ds-aks-core-${local.env}"
+  target_resource_id         = module.aks_core.id
+  log_analytics_workspace_id = module.log_analytics_core.id
+
+  logs = [
+    {
+      category = "kube-apiserver"
+      enabled  = true
+    },
+    {
+      category = "kube-controller-manager"
+      enabled  = true
+    },
+    {
+      category = "kube-scheduler"
+      enabled  = true
+    },
+    {
+      category = "cluster-autoscaler"
+      enabled  = true
+    }
+  ]
+
+  metrics = [
+    {
+      category = "AllMetrics"
+      enabled  = true
+    }
+  ]
+}
+
 module "kube_baseline" {
   source      = "../../modules/kube-baseline"
   environment = local.env
