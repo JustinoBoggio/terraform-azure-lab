@@ -49,7 +49,12 @@ jobs:
       - name: Build and push image
         shell: pwsh
         run: |
-          $image = "$env:ACR_LOGIN_SERVER/$env:IMAGE_NAME:$env:IMAGE_TAG"
+          Write-Host "ACR_LOGIN_SERVER: $env:ACR_LOGIN_SERVER"
+          Write-Host "IMAGE_NAME: $env:IMAGE_NAME"
+          Write-Host "IMAGE_TAG: $env:IMAGE_TAG"
+
+          $image = "{0}/{1}:{2}" -f $env:ACR_LOGIN_SERVER, $env:IMAGE_NAME, $env:IMAGE_TAG
           Write-Host "Building image $image"
+
           docker build -t $image ./apps/hello-api
           docker push $image
