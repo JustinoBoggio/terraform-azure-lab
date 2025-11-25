@@ -85,6 +85,10 @@ resource "azurerm_policy_definition" "only_eastus" {
           notEquals = "Microsoft.Resources/subscriptions/resourceGroups"
         },
         {
+          field     = "type"
+          notEquals = "Microsoft.Insights/actionGroups"
+        },
+        {
           field     = "location"
           notEquals = "eastus"
         }

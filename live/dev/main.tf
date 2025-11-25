@@ -54,6 +54,67 @@ module "log_analytics_core" {
   tags              = local.common_tags
 }
 
+resource "azurerm_monitor_action_group" "email_justino_action_group" {
+  name                = "ag-${local.env}-justino-email"
+  resource_group_name = module.rg_core.name
+  short_name          = "${local.env}-email"
+
+  email_receiver {
+    name                    = "justino-email"
+    email_address           = "justinoboggio@hotmail.com"
+    use_common_alert_schema = true
+  }
+
+  tags = local.common_tags
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "pods_restarts_apps" {
+  name                = "alert-pod-restarts-apps-${local.env}"
+  resource_group_name = module.rg_core.name
+  location            = local.location
+
+  display_name = "Dev - Pods with restarts in namespace apps"
+  description  = "Alert when any pod in namespace 'apps' has ContainerRestartCount > 0 in AKS dev cluster"
+  severity     = 3
+  enabled      = true
+
+  # Scope: Log Analytics workspace of dev
+  scopes = [
+    module.log_analytics_core.id
+  ]
+
+  evaluation_frequency = "PT5M"  # Every 5 minutes
+  window_duration      = "PT15M" # Look at last 15 minutes
+
+  criteria {
+    query = <<-KQL
+      KubePodInventory
+      | where ClusterName == "aks-core-dev"
+      | where Namespace == "apps"
+      | summarize MaxRestarts = max(ContainerRestartCount)
+      | where MaxRestarts > 0
+    KQL
+
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+
+    failing_periods {
+      number_of_evaluation_periods             = 1
+      minimum_failing_periods_to_trigger_alert = 1
+    }
+  }
+
+  action {
+    action_groups = [
+      azurerm_monitor_action_group.email_justino_action_group.id
+    ]
+  }
+
+  tags = local.common_tags
+}
+
+
 # Shared Key Vault for dev (RBAC enabled)
 module "kv_core" {
   source = "../../modules/key-vault"
@@ -116,6 +177,42 @@ module "aks_core" {
   enable_auto_scaling = false
 
   tags = local.common_tags
+}
+
+module "diag_aks_core" {
+  source = "../../modules/diagnostic-settings"
+
+  name                       = "ds-aks-core-${local.env}"
+  target_resource_id         = module.aks_core.id
+  log_analytics_workspace_id = module.log_analytics_core.id
+
+  # AKS control plane logs
+  logs = [
+    {
+      category = "kube-apiserver"
+      enabled  = true
+    },
+    {
+      category = "kube-controller-manager"
+      enabled  = true
+    },
+    {
+      category = "kube-scheduler"
+      enabled  = true
+    },
+    {
+      category = "cluster-autoscaler"
+      enabled  = true
+    }
+  ]
+
+  # AKS metrics
+  metrics = [
+    {
+      category = "AllMetrics"
+      enabled  = true
+    }
+  ]
 }
 
 module "kube_baseline" {
@@ -227,4 +324,13 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
   scope                = module.acr_core.id
   role_definition_name = "AcrPull"
   principal_id         = module.aks_core.kubelet_identity_object_id
+}
+
+module "monitoring_stack" {
+  source = "../../modules/kube-prometheus-stack"
+
+  environment            = local.env
+  owner                  = local.owner
+  grafana_admin_user     = "admin"
+  grafana_admin_password = "DevGrafana123!" # only for lab purposes
 }
