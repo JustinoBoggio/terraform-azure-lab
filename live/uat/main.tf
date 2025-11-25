@@ -325,3 +325,12 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
   role_definition_name = "AcrPull"
   principal_id         = module.aks_core.kubelet_identity_object_id
 }
+
+# module "monitoring_stack" {
+#   source = "../../modules/kube-prometheus-stack"
+
+#   environment            = local.env
+#   owner                  = local.owner
+#   grafana_admin_user     = "admin"
+#   grafana_admin_password = "UatGrafana123!" # only for lab purposes
+# }
