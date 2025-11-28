@@ -1,5 +1,6 @@
 locals {
   location  = "eastus"
+  sql_location = "eastus2"
   env       = "dev"
   tenant_id = "004b1179-227e-44f2-b759-e9f05b015b7b"
   owner     = "justino"
@@ -175,6 +176,85 @@ module "aks_core" {
   node_count          = 1
   node_vm_size        = "Standard_DC2s_v3"
   enable_auto_scaling = false
+
+  tags = local.common_tags
+}
+
+resource "random_password" "sql_admin" {
+  length           = 24
+  special          = true
+  override_special = "_%@-" # avoid problems with some characters
+}
+
+module "sql_core" {
+  source = "../../modules/sql-database"
+
+  server_name         = "sql-core-${local.env}-justino"
+  database_name       = "sqldb-core-${local.env}"
+  location            = local.sql_location
+  resource_group_name = module.rg_core.name
+
+  administrator_login          = var.sql_admin_login
+  administrator_login_password = random_password.sql_admin.result
+
+  sku_name = "Basic"
+  public_network_access_enabled = false
+
+  tags = local.common_tags
+}
+
+resource "azurerm_key_vault_secret" "sql_admin_password_dev" {
+  name         = "sql-admin-password-${local.env}"
+  value        = random_password.sql_admin.result
+  key_vault_id = module.kv_core.id
+
+  tags = local.common_tags
+}
+
+resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
+  name      = "allow-azure-services"
+  server_id = module.sql_core.server_id
+
+  start_ip_address = "0.0.0.0"
+  end_ip_address   = "0.0.0.0"
+}
+
+# Private DNS zone for Azure SQL private endpoints
+resource "azurerm_private_dns_zone" "sql_privatelink" {
+  name                = "privatelink.database.windows.net"
+  resource_group_name = module.rg_core.name
+
+  tags = local.common_tags
+}
+
+# Link the private DNS zone to the core VNet
+resource "azurerm_private_dns_zone_virtual_network_link" "sql_privatelink_vnet" {
+  name                  = "sql-privatelink-vnet-core-${local.env}"
+  resource_group_name   = module.rg_core.name
+  private_dns_zone_name = azurerm_private_dns_zone.sql_privatelink.name
+  virtual_network_id    = module.vnet_core.vnet_id
+
+  registration_enabled = false
+}
+
+# Private Endpoint for SQL Server
+resource "azurerm_private_endpoint" "sql_private_endpoint" {
+  name                = "pe-sql-core-${local.env}"
+  location            = local.location              # same region as VNet (eastus)
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-db"]
+
+  private_service_connection {
+    name                           = "sql-core-${local.env}-connection"
+    private_connection_resource_id = module.sql_core.server_id
+    is_manual_connection           = false
+    subresource_names              = ["sqlServer"]
+  }
+
+  private_dns_zone_group {
+    name                 = "sql-privatelink-zone-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.sql_privatelink.id]
+  }
 
   tags = local.common_tags
 }

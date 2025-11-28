@@ -7,7 +7,7 @@ crash.log
 crash.*.log
 
 # Sensitive variable files
-terraform.tfvars
+*.tfvars
 *.auto.tfvars
 
 # Local files
