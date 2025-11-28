@@ -89,8 +89,12 @@ resource "azurerm_policy_definition" "only_eastus" {
           notEquals = "Microsoft.Insights/actionGroups"
         },
         {
-          field     = "location"
-          notEquals = "eastus"
+          field = "location"
+          notIn = [
+            "eastus",
+            "eastus2",
+            "global"
+          ]
         }
       ]
     }
@@ -129,6 +133,10 @@ resource "azurerm_policy_definition" "enforce_resource_tags" {
         {
           field     = "type"
           notEquals = "Microsoft.Resources/subscriptions/resourceGroups"
+        },
+        {
+          field     = "type"
+          notEquals = "Microsoft.Network/privateDnsZones/virtualNetworkLinks"
         },
         {
           anyOf = [
