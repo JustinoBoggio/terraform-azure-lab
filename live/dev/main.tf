@@ -1,9 +1,9 @@
 locals {
-  location  = "eastus"
+  location     = "eastus"
   sql_location = "eastus2"
-  env       = "dev"
-  tenant_id = "004b1179-227e-44f2-b759-e9f05b015b7b"
-  owner     = "justino"
+  env          = "dev"
+  tenant_id    = "004b1179-227e-44f2-b759-e9f05b015b7b"
+  owner        = "justino"
   common_tags = {
     environment = local.env
     owner       = local.owner
@@ -197,7 +197,7 @@ module "sql_core" {
   administrator_login          = var.sql_admin_login
   administrator_login_password = random_password.sql_admin.result
 
-  sku_name = "Basic"
+  sku_name                      = "Basic"
   public_network_access_enabled = false
 
   tags = local.common_tags
@@ -240,7 +240,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "sql_privatelink_vnet" 
 # Private Endpoint for SQL Server
 resource "azurerm_private_endpoint" "sql_private_endpoint" {
   name                = "pe-sql-core-${local.env}"
-  location            = local.location              # same region as VNet (eastus)
+  location            = local.location # same region as VNet (eastus)
   resource_group_name = module.rg_core.name
   subnet_id           = module.vnet_core.subnet_ids["snet-db"]
 
