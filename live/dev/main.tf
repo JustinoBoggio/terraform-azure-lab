@@ -38,6 +38,9 @@ module "vnet_core" {
     "snet-aks" = {
       address_prefixes = ["10.10.3.0/24"]
     }
+    "snet-appgw" = {
+      address_prefixes = ["10.10.4.0/24"]
+    }
   }
 
   tags = local.common_tags
@@ -332,7 +335,8 @@ module "nginx_ingress" {
   release_name  = "ingress-nginx"
   replica_count = 1
 
-  service_type = "ClusterIP"
+  service_type  = "NodePort"
+  nodeport_http = 30141
 }
 
 module "sample_app" {
@@ -413,4 +417,18 @@ module "monitoring_stack" {
   owner                  = local.owner
   grafana_admin_user     = "admin"
   grafana_admin_password = "DevGrafana123!" # only for lab purposes
+}
+
+module "app_gateway_core" {
+  source = "../../modules/app-gateway"
+
+  name                = "agw-core-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-appgw"]
+
+  backend_port         = 30141
+  backend_ip_addresses = ["10.10.3.10"]
+
+  tags = local.common_tags
 }

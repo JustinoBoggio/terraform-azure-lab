@@ -31,3 +31,8 @@ variable "service_type" {
   description = "Kubernetes Service type for the ingress controller (ClusterIP, LoadBalancer, NodePort)"
   default     = "ClusterIP"
 }
+
+variable "nodeport_http" {
+  type    = number
+  default = 30080
+}
