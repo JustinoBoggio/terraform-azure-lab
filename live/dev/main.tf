@@ -430,5 +430,7 @@ module "app_gateway_core" {
   backend_port         = 30141
   backend_ip_addresses = ["10.10.3.10"]
 
+  host_name = "hello-dev.local"
+
   tags = local.common_tags
 }
