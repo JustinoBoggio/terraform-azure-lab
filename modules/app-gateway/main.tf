@@ -42,12 +42,29 @@ resource "azurerm_application_gateway" "this" {
 }
 
 
+probe {
+    name                = "probe-${var.name}"
+    protocol            = "Http"
+    path                = "/"
+    host                = var.host_name
+    interval            = 30
+    timeout             = 30
+    unhealthy_threshold = 3
+    
+    match {
+      status_code = ["200-399"]
+    }
+  }
+
   backend_http_settings {
     name                  = "http-settings"
     protocol              = "Http"
     port                  = var.backend_port
     cookie_based_affinity = "Disabled"
     request_timeout       = 30
+    
+    host_name             = var.host_name
+    probe_name            = "probe-${var.name}"
   }
 
   http_listener {

@@ -26,3 +26,7 @@ variable "backend_port" {
 variable "tags" {
   type = map(string)
 }
+
+variable "host_name" {
+  type        = string
+}
