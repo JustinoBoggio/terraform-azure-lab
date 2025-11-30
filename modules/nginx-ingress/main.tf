@@ -27,6 +27,9 @@ resource "helm_release" "ingress_nginx" {
         service = {
           type = var.service_type
         }
+        nodePorts = {
+          http  = var.nodeport_http
+        }
         metrics = {
           enabled = true
         }
