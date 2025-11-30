@@ -336,7 +336,7 @@ module "nginx_ingress" {
   replica_count = 1
 
   service_type  = "NodePort"
-  nodeport_http = 30080
+  nodeport_http = 30141
 }
 
 module "sample_app" {
