@@ -427,7 +427,7 @@ module "app_gateway_core" {
   resource_group_name = module.rg_core.name
   subnet_id           = module.vnet_core.subnet_ids["snet-appgw"]
 
-  backend_port = 30141
+  backend_port         = 30141
   backend_ip_addresses = ["10.10.3.10"]
 
   tags = local.common_tags
