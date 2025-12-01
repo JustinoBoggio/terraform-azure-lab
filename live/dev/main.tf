@@ -298,6 +298,85 @@ module "diag_aks_core" {
   ]
 }
 
+# ---------------------------------------------------------
+# Security Groups (NSG) configuration
+# ---------------------------------------------------------
+
+module "nsg_aks" {
+  source = "../../modules/nsg"
+
+  name                = "nsg-aks-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-aks"]
+  tags                = local.common_tags
+}
+
+# Rule: Allow traffic from Application Gateway Subnet to NodePort range
+resource "azurerm_network_security_rule" "allow_appgw_to_aks" {
+  name                        = "AllowAppGwToAKS"
+  priority                    = 100
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "30000-32767"  # Kubernetes NodePort range
+  source_address_prefix       = "10.10.4.0/24" # App Gateway Subnet CIDR
+  destination_address_prefix  = "*"
+  resource_group_name         = module.rg_core.name
+  network_security_group_name = module.nsg_aks.nsg_name
+}
+
+# Rule: Allow internal communication within the VNet (Required for AKS nodes to talk to API server if private, etc.)
+# By default Azure allows VNet inbound, but if we want to be explicit or restrictive later, we keep the default.
+
+module "nsg_appgw" {
+  source = "../../modules/nsg"
+
+  name                = "nsg-appgw-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-appgw"]
+  tags                = local.common_tags
+
+  # Inline rules required for App Gateway V2 creation/association
+  security_rules = [
+    {
+      name                       = "AllowGatewayManager"
+      priority                   = 100
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "65200-65535"
+      source_address_prefix      = "GatewayManager"
+      destination_address_prefix = "*"
+    },
+    {
+      name                       = "AllowInternetHTTP"
+      priority                   = 110
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "80" # Can be changed to "80,443" or separate rules
+      source_address_prefix      = "Internet"
+      destination_address_prefix = "*"
+    },
+    {
+      name                       = "AllowAzureLoadBalancer"
+      priority                   = 120
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "*"
+      source_address_prefix      = "AzureLoadBalancer" # Required for health probes
+      destination_address_prefix = "*"
+    }
+  ]
+}
+
 module "kube_baseline" {
   source      = "../../modules/kube-baseline"
   environment = local.env
