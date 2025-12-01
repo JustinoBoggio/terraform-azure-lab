@@ -30,3 +30,9 @@ variable "tags" {
   description = "Tags to apply to the ACR"
   default     = {}
 }
+
+variable "public_network_access_enabled" {
+  description = "Whether public network access is allowed for the container registry"
+  type        = bool
+  default     = true
+}
