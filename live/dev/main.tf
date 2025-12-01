@@ -363,7 +363,7 @@ module "nsg_appgw" {
       source_address_prefix      = "Internet"
       destination_address_prefix = "*"
     },
-     {
+    {
       name                       = "AllowAzureLoadBalancer"
       priority                   = 120
       direction                  = "Inbound"
