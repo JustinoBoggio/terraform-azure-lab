@@ -472,13 +472,49 @@ resource "azurerm_key_vault_secret" "hello_api_message" {
 module "acr_core" {
   source = "../../modules/acr"
 
-  # This will result in "acrdevjustino"
   name                = "acr${local.env}${local.owner}"
   resource_group_name = module.rg_core.name
   location            = local.location
 
-  sku           = "Basic"
-  admin_enabled = false
+  sku                           = "Premium"
+  public_network_access_enabled = false
+  admin_enabled                 = false
+
+  tags = local.common_tags
+}
+
+# Private DNS Zone for ACR
+resource "azurerm_private_dns_zone" "acr_dns" {
+  name                = "privatelink.azurecr.io"
+  resource_group_name = module.rg_core.name
+  tags                = local.common_tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "acr_dns_link" {
+  name                  = "link-acr-core-${local.env}"
+  resource_group_name   = module.rg_core.name
+  private_dns_zone_name = azurerm_private_dns_zone.acr_dns.name
+  virtual_network_id    = module.vnet_core.vnet_id
+}
+
+# Private Endpoint for ACR
+resource "azurerm_private_endpoint" "acr_pe" {
+  name                = "pe-acr-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-apps"]
+
+  private_service_connection {
+    name                           = "psc-acr-${local.env}"
+    private_connection_resource_id = module.acr_core.id
+    is_manual_connection           = false
+    subresource_names              = ["registry"]
+  }
+
+  private_dns_zone_group {
+    name                 = "pdz-acr-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.acr_dns.id]
+  }
 
   tags = local.common_tags
 }
