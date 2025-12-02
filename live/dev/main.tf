@@ -578,6 +578,37 @@ module "app_gateway_core" {
   tags = local.common_tags
 }
 
+module "diag_appgw_core" {
+  source = "../../modules/diagnostic-settings"
+
+  name                       = "ds-agw-core-${local.env}"
+  target_resource_id         = module.app_gateway_core.id
+  log_analytics_workspace_id = module.log_analytics_core.id
+
+  # Critical logs for Application Gateway and WAF
+  logs = [
+    {
+      category = "ApplicationGatewayAccessLog"
+      enabled  = true
+    },
+    {
+      category = "ApplicationGatewayPerformanceLog"
+      enabled  = true
+    },
+    {
+      category = "ApplicationGatewayFirewallLog"
+      enabled  = true
+    }
+  ]
+
+  metrics = [
+    {
+      category = "AllMetrics"
+      enabled  = true
+    }
+  ]
+}
+
 # Secondary VNet in a different region (to bypass capacity limits)
 module "vnet_runner" {
   source = "../../modules/network"
@@ -676,4 +707,3 @@ resource "azurerm_private_dns_zone_virtual_network_link" "acr_dns_link_runner" {
   private_dns_zone_name = azurerm_private_dns_zone.acr_dns.name
   virtual_network_id    = module.vnet_runner.vnet_id
 }
-
