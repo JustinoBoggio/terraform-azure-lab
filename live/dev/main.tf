@@ -377,6 +377,34 @@ module "nsg_appgw" {
   ]
 }
 
+data "http" "my_ip" {
+  url = "https://api.ipify.org"
+}
+
+module "nsg_apps" {
+  source = "../../modules/nsg"
+
+  name                = "nsg-apps-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-apps"]
+  tags                = local.common_tags
+
+  security_rules = [
+    {
+      name                       = "AllowSSHFromMyIP"
+      priority                   = 100
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = chomp(data.http.my_ip.response_body)
+      destination_address_prefix = "*"
+    }
+  ]
+}
+
 module "kube_baseline" {
   source      = "../../modules/kube-baseline"
   environment = local.env
@@ -548,4 +576,43 @@ module "app_gateway_core" {
   host_name = "hello-dev.local"
 
   tags = local.common_tags
+}
+
+# Generate an SSH key for the runner (Terraform handles the creation)
+resource "tls_private_key" "runner_ssh" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# Save the private key locally so you can SSH into the VM
+resource "local_file" "private_key" {
+  content         = tls_private_key.runner_ssh.private_key_pem
+  filename        = "${path.module}/runner-key.pem"
+  file_permission = "0600"
+}
+
+resource "local_file" "public_key" {
+  content  = tls_private_key.runner_ssh.public_key_openssh
+  filename = "${path.module}/runner-key.pub"
+}
+
+module "runner_vm" {
+  source = "../../modules/linux-vm"
+
+  name                = "vm-runner-${local.env}"
+  resource_group_name = module.rg_core.name
+  location            = local.location
+  subnet_id           = module.vnet_core.subnet_ids["snet-apps"]
+  vm_size             = "standard_b2ats_v2"
+
+  # Inject the script to install Docker/AzCLI automatically
+  custom_data = filebase64("${path.module}/scripts/install-tools.sh")
+
+  public_key_content = tls_private_key.runner_ssh.public_key_openssh
+
+  tags = local.common_tags
+}
+
+output "runner_ssh_command" {
+  value = "ssh -i runner-key.pem azureuser@${module.runner_vm.public_ip}"
 }
