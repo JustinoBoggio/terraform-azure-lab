@@ -19,3 +19,7 @@ output "key_vault_uri" {
   description = "URI of the dev Key Vault"
   value       = module.kv_core.vault_uri
 }
+
+output "runner_ssh_command" {
+  value = "ssh -i runner-key.pem azureuser@${module.runner_vm.public_ip}"
+}

@@ -8,8 +8,15 @@ crash.*.log
 
 # Sensitive variable files
 *.tfvars
+*.tfvars.json
 *.auto.tfvars
 
 # Local files
 *.log
 *.tmp
+
+# Key files
+*.pem
+*.key
+*.pub
+runner-key*

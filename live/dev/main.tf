@@ -1,9 +1,9 @@
 locals {
-  location     = "eastus"
-  sql_location = "eastus2"
-  env          = "dev"
-  tenant_id    = "004b1179-227e-44f2-b759-e9f05b015b7b"
-  owner        = "justino"
+  location           = "eastus"
+  secondary_location = "eastus2"
+  env                = "dev"
+  tenant_id          = "004b1179-227e-44f2-b759-e9f05b015b7b"
+  owner              = "justino"
   common_tags = {
     environment = local.env
     owner       = local.owner
@@ -194,7 +194,7 @@ module "sql_core" {
 
   server_name         = "sql-core-${local.env}-justino"
   database_name       = "sqldb-core-${local.env}"
-  location            = local.sql_location
+  location            = local.secondary_location
   resource_group_name = module.rg_core.name
 
   administrator_login          = var.sql_admin_login
@@ -578,6 +578,47 @@ module "app_gateway_core" {
   tags = local.common_tags
 }
 
+# Secondary VNet in a different region (to bypass capacity limits)
+module "vnet_runner" {
+  source = "../../modules/network"
+
+  name                = "vnet-runner-${local.env}"
+  location            = local.secondary_location # <--- Moving to a less congested region
+  resource_group_name = module.rg_core.name      # Can stay in same RG
+  address_space       = ["10.20.0.0/16"]
+
+  subnets = {
+    "snet-runner" = {
+      address_prefixes = ["10.20.1.0/24"]
+    }
+  }
+
+  tags = local.common_tags
+}
+
+module "nsg_runner" {
+  source              = "../../modules/nsg"
+  name                = "nsg-runner-${local.env}"
+  location            = local.secondary_location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_runner.subnet_ids["snet-runner"]
+  tags                = local.common_tags
+
+  security_rules = [
+    {
+      name                       = "AllowSSH"
+      priority                   = 100
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "22"
+      source_address_prefix      = chomp(data.http.my_ip.response_body)
+      destination_address_prefix = "*"
+    }
+  ]
+}
+
 # Generate an SSH key for the runner (Terraform handles the creation)
 resource "tls_private_key" "runner_ssh" {
   algorithm = "RSA"
@@ -601,9 +642,9 @@ module "runner_vm" {
 
   name                = "vm-runner-${local.env}"
   resource_group_name = module.rg_core.name
-  location            = local.location
-  subnet_id           = module.vnet_core.subnet_ids["snet-apps"]
-  vm_size             = "standard_b2ats_v2"
+  location            = local.secondary_location
+  subnet_id           = module.vnet_runner.subnet_ids["snet-runner"]
+  vm_size             = "Standard_B2s"
 
   # Inject the script to install Docker/AzCLI automatically
   custom_data = filebase64("${path.module}/scripts/install-tools.sh")
@@ -613,6 +654,26 @@ module "runner_vm" {
   tags = local.common_tags
 }
 
-output "runner_ssh_command" {
-  value = "ssh -i runner-key.pem azureuser@${module.runner_vm.public_ip}"
+# Peering from Core (EastUS) to Runner (EastUS2)
+resource "azurerm_virtual_network_peering" "core_to_runner" {
+  name                      = "peer-core-to-runner"
+  resource_group_name       = module.rg_core.name
+  virtual_network_name      = module.vnet_core.vnet_name
+  remote_virtual_network_id = module.vnet_runner.vnet_id
 }
+
+# Peering from Runner (EastUS2) to Core (EastUS)
+resource "azurerm_virtual_network_peering" "runner_to_core" {
+  name                      = "peer-runner-to-core"
+  resource_group_name       = module.rg_core.name
+  virtual_network_name      = module.vnet_runner.vnet_name
+  remote_virtual_network_id = module.vnet_core.vnet_id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "acr_dns_link_runner" {
+  name                  = "link-acr-runner-${local.env}"
+  resource_group_name   = module.rg_core.name
+  private_dns_zone_name = azurerm_private_dns_zone.acr_dns.name
+  virtual_network_id    = module.vnet_runner.vnet_id
+}
+
