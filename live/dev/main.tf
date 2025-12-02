@@ -549,3 +549,35 @@ module "app_gateway_core" {
 
   tags = local.common_tags
 }
+
+
+module "diag_appgw_core" {
+  source = "../../modules/diagnostic-settings"
+
+  name                       = "ds-agw-core-${local.env}"
+  target_resource_id         = module.app_gateway_core.id
+  log_analytics_workspace_id = module.log_analytics_core.id
+
+  # Critical logs for Application Gateway and WAF
+  logs = [
+    {
+      category = "ApplicationGatewayAccessLog"
+      enabled  = true
+    },
+    {
+      category = "ApplicationGatewayPerformanceLog"
+      enabled  = true
+    },
+    {
+      category = "ApplicationGatewayFirewallLog"
+      enabled  = true
+    }
+  ]
+
+  metrics = [
+    {
+      category = "AllMetrics"
+      enabled  = true
+    }
+  ]
+}
