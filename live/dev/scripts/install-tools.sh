@@ -28,3 +28,11 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 # ---------------------------------------------------------
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# ---------------------------------------------------------
+# 4. Install PowerShell (pwsh)
+# ---------------------------------------------------------
+wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
+dpkg -i packages-microsoft-prod.deb
+apt-get update
+apt-get install -y powershell
