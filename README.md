@@ -66,9 +66,6 @@ graph TD
 * **OIDC Authentication:** No long-lived client secrets. GitHub authenticates to Azure via OpenID Connect.
 ---
 
-```markdown
----
-
 ## 🛠️ Technology Stack
 
 | Category | Technology | Usage |
@@ -158,11 +155,12 @@ Result: Secure, private image builds without exposing the registry to the intern
     ├── sample-app             # Application Deployment wrapper
     ├── sql-database           # Azure SQL & Private Endpoints
     └── workload-identity      # OIDC Federation (Azure AD <-> K8s)
+```
 ---
 
 ## 👤 Author
 
 **Justino Boggio**
-*DevOps Engineer | Cloud Architect*
+*Devops Engineer | Cloud Engineer | SRE | Information Systems Engineer*
 
-[LinkedIn](https://www.linkedin.com/in/justinoboggio/) | [GitHub](https://github.com/JustinoBoggio)
+[LinkedIn](https://www.linkedin.com/in/justino-boggio-75a932204) | [GitHub](https://github.com/JustinoBoggio)
