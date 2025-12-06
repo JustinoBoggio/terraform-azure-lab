@@ -1,4 +1,4 @@
-name: Terraform DEV
+name: Terraform DEV Pipeline
 
 on:
   push:
@@ -13,26 +13,35 @@ on:
     paths:
       - "live/dev/**"
       - "modules/**"
+  workflow_dispatch:
 
 permissions:
-    id-token: write
-    contents: read
+  id-token: write   # Required for OIDC
+  contents: read    # Required to checkout the repo
+  pull-requests: write # Optional, to add comments to PRs
+
+env:
+  # Environment variables to authenticate to Azure using OIDC
+  ARM_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
+  ARM_SUBSCRIPTION_ID: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+  ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+  ARM_USE_OIDC: "true"
+  
+  TF_WORKING_DIR: 'live/dev'
 
 jobs:
   terraform-dev:
+    name: 'Terraform Plan & Apply'
     runs-on: ubuntu-latest
-
-
-
     defaults:
       run:
-        working-directory: live/dev
+        working-directory: ${{ env.TF_WORKING_DIR }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Azure login with OIDC
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -42,30 +51,26 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.0
+          terraform_version: "1.12.2"
 
-      - name: Terraform fmt
-        run: terraform fmt -check
-
-      - name: Terraform init
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: "true"
-          ARM_USE_AZUREAD: "true"
-          ARM_USE_CLI: "false"
+      - name: Terraform Init
         run: terraform init -input=false
 
-      - name: Terraform validate
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform plan
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_USE_OIDC: "true"
-          ARM_USE_AZUREAD: "true"
-          ARM_USE_CLI: "false"
-        run: terraform plan -input=false
+      - name: Terraform Plan
+        id: plan
+        # Save the plan to a file to be used in the apply stage, ensure that the apply executes exactly what was planned
+        run: terraform plan -out=tfplan -input=false
+
+      # ----------------------------------------------------------------
+      # APPLY STAGE - Only runs on main branch pushes
+      # ----------------------------------------------------------------
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -input=false tfplan

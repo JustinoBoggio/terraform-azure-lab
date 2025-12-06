@@ -22,6 +22,7 @@ provider "azurerm" {
 
   # Use Azure AD for storage APIs when needed
   storage_use_azuread = true
+  use_oidc = true
 }
 
 data "azurerm_client_config" "current" {}
