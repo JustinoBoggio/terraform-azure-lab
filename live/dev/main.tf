@@ -645,6 +645,16 @@ resource "azurerm_role_assignment" "kv_certs_officer_current" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
+data "azuread_service_principal" "pipeline_sp" {
+  client_id = "54a7c81b-4ea0-4b56-aafa-6e3daa2a976d"
+}
+
+resource "azurerm_role_assignment" "kv_certs_officer_pipeline" {
+  scope                = module.kv_core.id
+  role_definition_name = "Key Vault Certificates Officer"
+  principal_id         = data.azuread_service_principal.pipeline_sp.object_id
+}
+
 module "app_gateway_core" {
   source = "../../modules/app-gateway"
 
