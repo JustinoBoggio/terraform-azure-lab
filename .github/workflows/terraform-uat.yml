@@ -1,0 +1,66 @@
+name: Terraform UAT Pipeline
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read    # Required to checkout the repo
+  pull-requests: write # Optional, to add comments to PRs
+
+env:
+  # Environment variables to authenticate to Azure using OIDC
+  ARM_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
+  ARM_SUBSCRIPTION_ID: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+  ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+  ARM_USE_OIDC: "true"
+  
+  TF_WORKING_DIR: 'live/uat'
+  TF_VAR_ssh_source_ip: "${{ secrets.MY_HOME_IP }}"
+  TF_VAR_admin_object_id: "78556030-0486-40a1-9317-3d2b67a5d68a"
+
+jobs:
+  terraform-uat:
+    name: 'Terraform Plan & Apply'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12.2"
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        # Save the plan to a file to be used in the apply stage, ensure that the apply executes exactly what was planned
+        run: terraform plan -out=tfplan -input=false
+
+      # ----------------------------------------------------------------
+      # APPLY STAGE - Only runs on main branch pushes
+      # ----------------------------------------------------------------
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -input=false tfplan
