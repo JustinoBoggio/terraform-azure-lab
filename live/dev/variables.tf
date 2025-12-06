@@ -5,3 +5,13 @@ variable "sql_admin_login" {
   description = "Administrator login for the dev SQL server."
   default     = "sqladmindev"
 }
+
+variable "ssh_source_ip" {
+  description = "IP allowed to SSH"
+  type        = string
+}
+
+variable "admin_object_id" {
+  description = "Object ID of the Azure Administrator (Justino)"
+  type        = string
+}

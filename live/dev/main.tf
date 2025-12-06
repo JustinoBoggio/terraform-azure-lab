@@ -138,7 +138,7 @@ module "kv_core" {
 resource "azurerm_role_assignment" "kv_secrets_officer_current" {
   scope                = module.kv_core.id
   role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.admin_object_id
 }
 
 module "diag_kv_core" {
@@ -388,9 +388,9 @@ module "nsg_appgw" {
   ]
 }
 
-data "http" "my_ip" {
-  url = "https://api.ipify.org"
-}
+#data "http" "my_ip" {
+#  url = "https://api.ipify.org"
+#}
 
 module "nsg_apps" {
   source = "../../modules/nsg"
@@ -410,7 +410,8 @@ module "nsg_apps" {
       protocol                   = "Tcp"
       source_port_range          = "*"
       destination_port_range     = "22"
-      source_address_prefix      = chomp(data.http.my_ip.response_body)
+      #source_address_prefix      = chomp(data.http.my_ip.response_body)
+      source_address_prefix      = var.ssh_source_ip 
       destination_address_prefix = "*"
     }
   ]
@@ -642,7 +643,7 @@ resource "azurerm_role_assignment" "agw_kv_access" {
 resource "azurerm_role_assignment" "kv_certs_officer_current" {
   scope                = module.kv_core.id
   role_definition_name = "Key Vault Certificates Officer"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.admin_object_id
 }
 
 data "azuread_service_principal" "pipeline_sp" {
@@ -747,7 +748,8 @@ module "nsg_runner" {
       protocol                   = "Tcp"
       source_port_range          = "*"
       destination_port_range     = "22"
-      source_address_prefix      = chomp(data.http.my_ip.response_body)
+      #source_address_prefix      = chomp(data.http.my_ip.response_body)
+      source_address_prefix      = var.ssh_source_ip 
       destination_address_prefix = "*"
     }
   ]
