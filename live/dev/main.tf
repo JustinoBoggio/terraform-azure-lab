@@ -359,7 +359,18 @@ module "nsg_appgw" {
       access                     = "Allow"
       protocol                   = "Tcp"
       source_port_range          = "*"
-      destination_port_range     = "80" # Can be changed to "80,443" or separate rules
+      destination_port_range     = "80"
+      source_address_prefix      = "Internet"
+      destination_address_prefix = "*"
+    },
+    {
+      name                       = "AllowInternetHTTPS"
+      priority                   = 111
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "443"
       source_address_prefix      = "Internet"
       destination_address_prefix = "*"
     },
@@ -562,6 +573,78 @@ module "monitoring_stack" {
   grafana_admin_password = "DevGrafana123!" # only for lab purposes
 }
 
+resource "azurerm_key_vault_certificate" "app_cert" {
+  name         = "cert-hello-api-dev"
+  key_vault_id = module.kv_core.id
+
+  certificate_policy {
+    issuer_parameters {
+      name = "Self"
+    }
+
+    key_properties {
+      exportable = true
+      key_size   = 2048
+      key_type   = "RSA"
+      reuse_key  = true
+    }
+
+    lifetime_action {
+      action {
+        action_type = "AutoRenew"
+      }
+      trigger {
+        days_before_expiry = 30
+      }
+    }
+
+    secret_properties {
+      content_type = "application/x-pkcs12"
+    }
+
+    x509_certificate_properties {
+      # IMPORTANTE: El Subject debe coincidir con tu dominio (aunque sea local)
+      subject            = "CN=hello-dev.local"
+      validity_in_months = 12
+
+      key_usage = [
+        "cRLSign",
+        "dataEncipherment",
+        "digitalSignature",
+        "keyEncipherment",
+        "keyAgreement",
+        "keyCertSign",
+      ]
+
+      subject_alternative_names {
+        dns_names = ["hello-dev.local"]
+      }
+    }
+  }
+
+  tags = local.common_tags
+}
+
+resource "azurerm_user_assigned_identity" "agw_identity" {
+  name                = "mi-appgw-${local.env}"
+  resource_group_name = module.rg_core.name
+  location            = local.location
+  tags                = local.common_tags
+}
+
+# Permit the App Gateway identity to read secrets from Key Vault 
+resource "azurerm_role_assignment" "agw_kv_access" {
+  scope                = module.kv_core.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.agw_identity.principal_id
+}
+
+resource "azurerm_role_assignment" "kv_certs_officer_current" {
+  scope                = module.kv_core.id
+  role_definition_name = "Key Vault Certificates Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
 module "app_gateway_core" {
   source = "../../modules/app-gateway"
 
@@ -572,6 +655,16 @@ module "app_gateway_core" {
 
   backend_port         = 30141
   backend_ip_addresses = ["10.10.3.10"]
+
+  identity_ids = [azurerm_user_assigned_identity.agw_identity.id]
+
+  ssl_certificates = [
+    {
+      name = "cert-hello-dev"
+      # We use the versionless secret ID to always get the latest version
+      key_vault_secret_id = azurerm_key_vault_certificate.app_cert.versionless_secret_id
+    }
+  ]
 
   host_name = "hello-dev.local"
 

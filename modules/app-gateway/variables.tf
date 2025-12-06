@@ -30,3 +30,18 @@ variable "tags" {
 variable "host_name" {
   type        = string
 }
+
+variable "identity_ids" {
+  description = "List of User Assigned Identity IDs"
+  type        = list(string)
+  default     = null
+}
+
+variable "ssl_certificates" {
+  description = "List of SSL certificates from Key Vault"
+  type = list(object({
+    name                = string
+    key_vault_secret_id = string
+  }))
+  default = []
+}

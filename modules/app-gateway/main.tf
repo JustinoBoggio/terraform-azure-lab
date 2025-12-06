@@ -21,6 +21,19 @@ resource "azurerm_application_gateway" "this" {
     capacity = 1
   }
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = var.identity_ids
+  }
+
+  dynamic "ssl_certificate" {
+    for_each = var.ssl_certificates
+    content {
+      name                = ssl_certificate.value.name
+      key_vault_secret_id = ssl_certificate.value.key_vault_secret_id
+    }
+  }
+
   gateway_ip_configuration {
     name      = "appGatewayIpConfig"
     subnet_id = var.subnet_id
@@ -32,8 +45,8 @@ resource "azurerm_application_gateway" "this" {
   }
 
   frontend_port {
-    name = "httpPort"
-    port = 80
+    name = "httpsPort"
+    port = 443
   }
 
   backend_address_pool {
@@ -68,16 +81,17 @@ probe {
   }
 
   http_listener {
-    name                           = "http-listener"
+    name                           = "https-listener"
     frontend_ip_configuration_name = "appGatewayFrontendIP"
-    frontend_port_name             = "httpPort"
-    protocol                       = "Http"
+    frontend_port_name             = "httpsPort"
+    protocol                       = "Https"
+    ssl_certificate_name           = var.ssl_certificates[0].name
   }
 
   request_routing_rule {
     name                       = "rr-hello-api"
     rule_type                  = "Basic"
-    http_listener_name         = "http-listener"
+    http_listener_name         = "https-listener"
     backend_address_pool_name  = "aks-nginx-backend"
     backend_http_settings_name = "http-settings"
     priority                   = 100
