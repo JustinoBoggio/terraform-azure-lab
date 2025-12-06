@@ -39,6 +39,7 @@ graph TD
     Runner <==>|Global VNet Peering| ACR
     GitHub[GitHub Actions Cloud] -.->|OIDC Control| Runner
     AKS -.->|Pull Image| ACR
+```
 
 ## 🚀 Key Features
 
