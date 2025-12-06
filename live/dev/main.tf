@@ -3,9 +3,9 @@ locals {
   secondary_location = "eastus2" # Used for the Runner VM to avoid capacity issues and for SQL Database
   env                = "dev"
   owner              = "justino"
-  
-  tenant_id          = "004b1179-227e-44f2-b759-e9f05b015b7b"
-  
+
+  tenant_id = "004b1179-227e-44f2-b759-e9f05b015b7b"
+
   common_tags = {
     environment = local.env
     owner       = local.owner
@@ -83,12 +83,12 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "pods_restarts_apps" {
   severity            = 3
   enabled             = true
   scopes              = [module.log_analytics_core.id]
-  
+
   evaluation_frequency = "PT5M"
   window_duration      = "PT15M"
 
   criteria {
-    query = <<-KQL
+    query                   = <<-KQL
       KubePodInventory
       | where ClusterName == "aks-core-dev"
       | where Namespace == "apps"
@@ -190,7 +190,7 @@ module "diag_aks_core" {
   name                       = "ds-aks-core-${local.env}"
   target_resource_id         = module.aks_core.id
   log_analytics_workspace_id = module.log_analytics_core.id
-  
+
   logs = [
     { category = "kube-apiserver", enabled = true },
     { category = "kube-controller-manager", enabled = true },
@@ -381,16 +381,16 @@ resource "azurerm_key_vault_certificate" "app_cert" {
 module "app_gateway_core" {
   source = "../../modules/app-gateway"
 
-  name                 = "agw-core-${local.env}"
-  location             = local.location
-  resource_group_name  = module.rg_core.name
-  subnet_id            = module.vnet_core.subnet_ids["snet-appgw"]
-  
+  name                = "agw-core-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-appgw"]
+
   backend_port         = 30141
   backend_ip_addresses = ["10.10.3.10"] # Ip of the node where NGINX is running
-  
-  identity_ids         = [azurerm_user_assigned_identity.agw_identity.id]
-  
+
+  identity_ids = [azurerm_user_assigned_identity.agw_identity.id]
+
   ssl_certificates = [
     {
       name                = "cert-hello-dev"
@@ -453,19 +453,19 @@ module "nsg_appgw" {
 
   security_rules = [
     {
-      name = "AllowGatewayManager", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowGatewayManager", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "65200-65535", source_address_prefix = "GatewayManager", destination_address_prefix = "*"
     },
     {
-      name = "AllowInternetHTTP", priority = 110, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowInternetHTTP", priority = 110, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "80", source_address_prefix = "Internet", destination_address_prefix = "*"
     },
     {
-      name = "AllowInternetHTTPS", priority = 111, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowInternetHTTPS", priority = 111, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "443", source_address_prefix = "Internet", destination_address_prefix = "*"
     },
     {
-      name = "AllowAzureLoadBalancer", priority = 120, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowAzureLoadBalancer", priority = 120, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "*", source_address_prefix = "AzureLoadBalancer", destination_address_prefix = "*"
     }
   ]
@@ -535,7 +535,7 @@ module "sample_app" {
   image          = "${module.acr_core.login_server}/hello-api:dev"
   replicas       = 1
   container_port = 80
-  
+
   service_account_name       = kubernetes_service_account.hello_api.metadata[0].name
   secret_provider_class_name = "spc-hello-api"
   host                       = "hello-dev.local"
@@ -631,11 +631,11 @@ module "runner_vm" {
   location            = local.secondary_location
   subnet_id           = module.vnet_runner.subnet_ids["snet-runner"]
   vm_size             = "Standard_B2s"
-  
+
   # Cloud-init script injection
-  custom_data         = filebase64("${path.module}/scripts/install-tools.sh")
-  public_key_content  = tls_private_key.runner_ssh.public_key_openssh
-  tags                = local.common_tags
+  custom_data        = filebase64("${path.module}/scripts/install-tools.sh")
+  public_key_content = tls_private_key.runner_ssh.public_key_openssh
+  tags               = local.common_tags
 }
 
 module "nsg_runner" {
@@ -648,7 +648,7 @@ module "nsg_runner" {
 
   security_rules = [
     {
-      name = "AllowSSH", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowSSH", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "22", source_address_prefix = var.ssh_source_ip, destination_address_prefix = "*"
     }
   ]

@@ -4,7 +4,7 @@ locals {
   env                = "uat"
   owner              = "justino"
   tenant_id          = "004b1179-227e-44f2-b759-e9f05b015b7b"
-  
+
   common_tags = {
     environment = local.env
     owner       = local.owner
@@ -31,7 +31,7 @@ module "vnet_core" {
   location            = local.location
   resource_group_name = module.rg_core.name
 
-  address_space       = ["10.30.0.0/16"] 
+  address_space = ["10.30.0.0/16"]
 
   subnets = {
     "snet-apps" = {
@@ -118,7 +118,7 @@ module "aks_core" {
   log_analytics_workspace_id = module.log_analytics_core.id
 
   # High availability settings
-  node_count          = 2 
+  node_count          = 2
   node_vm_size        = "Standard_DC2s_v3"
   enable_auto_scaling = true
   min_count           = 2
@@ -132,7 +132,7 @@ module "diag_aks_core" {
   name                       = "ds-aks-core-${local.env}"
   target_resource_id         = module.aks_core.id
   log_analytics_workspace_id = module.log_analytics_core.id
-  
+
   logs = [
     { category = "kube-apiserver", enabled = true },
     { category = "kube-controller-manager", enabled = true },
@@ -161,7 +161,7 @@ module "sql_core" {
   administrator_login          = var.sql_admin_login
   administrator_login_password = random_password.sql_admin.result
 
-  sku_name                      = "S0" 
+  sku_name                      = "S0"
   public_network_access_enabled = false
   tags                          = local.common_tags
 }
@@ -323,7 +323,7 @@ module "app_gateway_core" {
   backend_port         = 30141
   backend_ip_addresses = ["10.30.3.10"]
   identity_ids         = [azurerm_user_assigned_identity.agw_identity.id]
-  
+
   ssl_certificates = [
     {
       name                = "cert-hello-uat"
@@ -357,22 +357,22 @@ module "nginx_ingress" {
 }
 
 module "hello_api_identity" {
-  source = "../../modules/workload-identity"
-  name   = "mi-hello-api-${local.env}"
-  location            = local.location
-  resource_group_name = module.rg_core.name
+  source                     = "../../modules/workload-identity"
+  name                       = "mi-hello-api-${local.env}"
+  location                   = local.location
+  resource_group_name        = module.rg_core.name
   kubernetes_oidc_issuer_url = module.aks_core.oidc_issuer_url
-  namespace            = "apps"
-  service_account_name = "hello-api-sa"
-  key_vault_id         = module.kv_core.id
-  tags                 = local.common_tags
+  namespace                  = "apps"
+  service_account_name       = "hello-api-sa"
+  key_vault_id               = module.kv_core.id
+  tags                       = local.common_tags
 }
 
 resource "kubernetes_service_account" "hello_api" {
   metadata {
-    name      = "hello-api-sa"
-    namespace = "apps"
-    labels    = { "azure.workload.identity/use" = "true" }
+    name        = "hello-api-sa"
+    namespace   = "apps"
+    labels      = { "azure.workload.identity/use" = "true" }
     annotations = { "azure.workload.identity/client-id" = module.hello_api_identity.client_id }
   }
 }
@@ -386,19 +386,19 @@ resource "azurerm_key_vault_secret" "hello_api_message" {
 }
 
 module "sample_app" {
-  source = "../../modules/sample-app"
+  source      = "../../modules/sample-app"
   environment = local.env
   owner       = local.owner
   namespace   = "apps"
   app_name    = "hello-api"
-  
-  image       = "${module.acr_core.login_server}/hello-api:uat" 
-  
-  replicas         = 2
-  container_port   = 80
-  service_account_name = kubernetes_service_account.hello_api.metadata[0].name
+
+  image = "${module.acr_core.login_server}/hello-api:uat"
+
+  replicas                   = 2
+  container_port             = 80
+  service_account_name       = kubernetes_service_account.hello_api.metadata[0].name
   secret_provider_class_name = "spc-hello-api"
-  host             = "hello-uat.local"
+  host                       = "hello-uat.local"
 
   env_vars = {
     KEYVAULT_URL = module.kv_core.vault_uri
@@ -416,8 +416,8 @@ module "vnet_runner" {
   name                = "vnet-runner-${local.env}"
   location            = local.secondary_location
   resource_group_name = module.rg_core.name
-  
-  address_space       = ["10.40.0.0/16"] 
+
+  address_space = ["10.40.0.0/16"]
 
   subnets = {
     "snet-runner" = {
@@ -469,11 +469,11 @@ module "runner_vm" {
   location            = local.secondary_location
   subnet_id           = module.vnet_runner.subnet_ids["snet-runner"]
   vm_size             = "Standard_B2s"
-  
+
   # Install tools script
-  custom_data         = filebase64("${path.module}/scripts/install-tools.sh")
-  public_key_content  = tls_private_key.runner_ssh.public_key_openssh
-  tags                = local.common_tags
+  custom_data        = filebase64("${path.module}/scripts/install-tools.sh")
+  public_key_content = tls_private_key.runner_ssh.public_key_openssh
+  tags               = local.common_tags
 }
 
 module "nsg_runner" {
@@ -493,7 +493,7 @@ module "nsg_runner" {
       protocol                   = "Tcp"
       source_port_range          = "*"
       destination_port_range     = "22"
-      source_address_prefix      = var.ssh_source_ip 
+      source_address_prefix      = var.ssh_source_ip
       destination_address_prefix = "*"
     }
   ]

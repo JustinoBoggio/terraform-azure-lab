@@ -18,6 +18,7 @@ env:
   TF_WORKING_DIR: 'live/uat'
   TF_VAR_ssh_source_ip: "${{ secrets.MY_HOME_IP }}"
   TF_VAR_admin_object_id: "78556030-0486-40a1-9317-3d2b67a5d68a"
+  TF_VAR_pipeline_client_id: "${{ secrets.AZURE_CLIENT_ID }}"
 
 jobs:
   terraform-uat:
