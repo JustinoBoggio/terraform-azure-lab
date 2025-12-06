@@ -4,12 +4,12 @@ locals {
   env                = "dev"
   owner              = "justino"
   tenant_id          = "004b1179-227e-44f2-b759-e9f05b015b7b"
-  
+
   common_tags = {
     environment = local.env
     owner       = local.owner
     project     = "terraform-azure-lab"
-    managed_by  = "terraform" 
+    managed_by  = "terraform"
   }
 }
 
@@ -69,19 +69,19 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "pods_restarts_apps" {
   name                = "alert-pod-restarts-apps-${local.env}"
   resource_group_name = module.rg_core.name
   location            = local.location
-  
-  display_name        = "Dev - Pods with restarts in namespace apps"
-  description         = "Alert when any pod in namespace 'apps' has ContainerRestartCount > 0 in AKS dev cluster"
-  
-  severity            = 3
-  enabled             = true
-  scopes              = [module.log_analytics_core.id]
-  
+
+  display_name = "Dev - Pods with restarts in namespace apps"
+  description  = "Alert when any pod in namespace 'apps' has ContainerRestartCount > 0 in AKS dev cluster"
+
+  severity = 3
+  enabled  = true
+  scopes   = [module.log_analytics_core.id]
+
   evaluation_frequency = "PT5M"
   window_duration      = "PT15M"
 
   criteria {
-    query = <<-KQL
+    query                   = <<-KQL
       KubePodInventory
       | where ClusterName == "aks-core-dev"
       | where Namespace == "apps"
@@ -144,7 +144,7 @@ module "diag_kv_core" {
 
 # CI/CD Pipeline Identity
 data "azuread_service_principal" "pipeline_sp" {
-  client_id = var.pipeline_client_id 
+  client_id = var.pipeline_client_id
 }
 
 resource "azurerm_role_assignment" "kv_certs_officer_pipeline" {
@@ -181,7 +181,7 @@ module "diag_aks_core" {
   name                       = "ds-aks-core-${local.env}"
   target_resource_id         = module.aks_core.id
   log_analytics_workspace_id = module.log_analytics_core.id
-  
+
   logs = [
     { category = "kube-apiserver", enabled = true },
     { category = "kube-controller-manager", enabled = true },
@@ -378,7 +378,7 @@ module "app_gateway_core" {
   backend_port         = 30141
   backend_ip_addresses = ["10.10.3.10"]
   identity_ids         = [azurerm_user_assigned_identity.agw_identity.id]
-  
+
   ssl_certificates = [
     {
       name                = "cert-hello-dev"
@@ -442,19 +442,19 @@ module "nsg_appgw" {
 
   security_rules = [
     {
-      name = "AllowGatewayManager", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowGatewayManager", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "65200-65535", source_address_prefix = "GatewayManager", destination_address_prefix = "*"
     },
     {
-      name = "AllowInternetHTTP", priority = 110, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowInternetHTTP", priority = 110, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "80", source_address_prefix = "Internet", destination_address_prefix = "*"
     },
     {
-      name = "AllowInternetHTTPS", priority = 111, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowInternetHTTPS", priority = 111, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "443", source_address_prefix = "Internet", destination_address_prefix = "*"
     },
     {
-      name = "AllowAzureLoadBalancer", priority = 120, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowAzureLoadBalancer", priority = 120, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "*", source_address_prefix = "AzureLoadBalancer", destination_address_prefix = "*"
     }
   ]
@@ -517,9 +517,9 @@ module "hello_api_identity" {
 
 resource "kubernetes_service_account" "hello_api" {
   metadata {
-    name      = "hello-api-sa"
-    namespace = "apps"
-    labels = { "azure.workload.identity/use" = "true" }
+    name        = "hello-api-sa"
+    namespace   = "apps"
+    labels      = { "azure.workload.identity/use" = "true" }
     annotations = { "azure.workload.identity/client-id" = module.hello_api_identity.client_id }
   }
 }
@@ -533,7 +533,7 @@ module "sample_app" {
   image          = "${module.acr_core.login_server}/hello-api:dev"
   replicas       = 1
   container_port = 80
-  
+
   service_account_name       = kubernetes_service_account.hello_api.metadata[0].name
   secret_provider_class_name = "spc-hello-api"
   host                       = "hello-dev.local"
@@ -625,10 +625,10 @@ module "runner_vm" {
   location            = local.secondary_location
   subnet_id           = module.vnet_runner.subnet_ids["snet-runner"]
   vm_size             = "Standard_B2s" # Kept in secondary region for capacity
-  
-  custom_data         = filebase64("${path.module}/scripts/install-tools.sh")
-  public_key_content  = tls_private_key.runner_ssh.public_key_openssh
-  tags                = local.common_tags
+
+  custom_data        = filebase64("${path.module}/scripts/install-tools.sh")
+  public_key_content = tls_private_key.runner_ssh.public_key_openssh
+  tags               = local.common_tags
 }
 
 module "nsg_runner" {
@@ -641,7 +641,7 @@ module "nsg_runner" {
 
   security_rules = [
     {
-      name = "AllowSSH", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name              = "AllowSSH", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "22", source_address_prefix = var.ssh_source_ip, destination_address_prefix = "*"
     }
   ]
