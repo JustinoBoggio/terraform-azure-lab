@@ -1,16 +1,15 @@
 locals {
   location           = "eastus"
-  secondary_location = "eastus2" # Used for the Runner VM to avoid capacity issues and for SQL Database
+  secondary_location = "eastus2" # Runner VM location
   env                = "dev"
   owner              = "justino"
-
-  tenant_id = "004b1179-227e-44f2-b759-e9f05b015b7b"
-
+  tenant_id          = "004b1179-227e-44f2-b759-e9f05b015b7b"
+  
   common_tags = {
     environment = local.env
     owner       = local.owner
     project     = "terraform-azure-lab"
-    managed_by  = "terraform"
+    managed_by  = "terraform" 
   }
 }
 
@@ -34,18 +33,10 @@ module "vnet_core" {
   address_space       = ["10.10.0.0/16"]
 
   subnets = {
-    "snet-apps" = {
-      address_prefixes = ["10.10.1.0/24"]
-    }
-    "snet-db" = {
-      address_prefixes = ["10.10.2.0/24"]
-    }
-    "snet-aks" = {
-      address_prefixes = ["10.10.3.0/24"]
-    }
-    "snet-appgw" = {
-      address_prefixes = ["10.10.4.0/24"]
-    }
+    "snet-apps"  = { address_prefixes = ["10.10.1.0/24"] } # Private Endpoints lives here
+    "snet-db"    = { address_prefixes = ["10.10.2.0/24"] }
+    "snet-aks"   = { address_prefixes = ["10.10.3.0/24"] }
+    "snet-appgw" = { address_prefixes = ["10.10.4.0/24"] }
   }
 
   tags = local.common_tags
@@ -78,17 +69,19 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "pods_restarts_apps" {
   name                = "alert-pod-restarts-apps-${local.env}"
   resource_group_name = module.rg_core.name
   location            = local.location
+  
   display_name        = "Dev - Pods with restarts in namespace apps"
-  description         = "Alert when any pod in namespace 'apps' has ContainerRestartCount > 0"
+  description         = "Alert when any pod in namespace 'apps' has ContainerRestartCount > 0 in AKS dev cluster"
+  
   severity            = 3
   enabled             = true
   scopes              = [module.log_analytics_core.id]
-
+  
   evaluation_frequency = "PT5M"
   window_duration      = "PT15M"
 
   criteria {
-    query                   = <<-KQL
+    query = <<-KQL
       KubePodInventory
       | where ClusterName == "aks-core-dev"
       | where Namespace == "apps"
@@ -127,14 +120,13 @@ module "kv_core" {
   tags                       = local.common_tags
 }
 
-# Role Assignment for Admin User - Secrets
+# Role Assignment for Admin User
 resource "azurerm_role_assignment" "kv_secrets_officer_current" {
   scope                = module.kv_core.id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = var.admin_object_id
 }
 
-# Role Assignment for Admin User - Certificates
 resource "azurerm_role_assignment" "kv_certs_officer_current" {
   scope                = module.kv_core.id
   role_definition_name = "Key Vault Certificates Officer"
@@ -150,12 +142,11 @@ module "diag_kv_core" {
   metrics                    = [{ category = "AllMetrics", enabled = true }]
 }
 
-# CI/CD Pipeline Identity (Service Principal)
+# CI/CD Pipeline Identity
 data "azuread_service_principal" "pipeline_sp" {
-  client_id = var.pipeline_client_id
+  client_id = var.pipeline_client_id 
 }
 
-# Role Assignment for Pipeline - Certificates
 resource "azurerm_role_assignment" "kv_certs_officer_pipeline" {
   scope                = module.kv_core.id
   role_definition_name = "Key Vault Certificates Officer"
@@ -177,7 +168,7 @@ module "aks_core" {
   vnet_id                    = module.vnet_core.vnet_id
   log_analytics_workspace_id = module.log_analytics_core.id
 
-  # Dev Configuration: Single Node, No Autoscaling
+  # Dev Config
   node_count          = 1
   node_vm_size        = "Standard_DC2s_v3"
   enable_auto_scaling = false
@@ -190,7 +181,7 @@ module "diag_aks_core" {
   name                       = "ds-aks-core-${local.env}"
   target_resource_id         = module.aks_core.id
   log_analytics_workspace_id = module.log_analytics_core.id
-
+  
   logs = [
     { category = "kube-apiserver", enabled = true },
     { category = "kube-controller-manager", enabled = true },
@@ -284,7 +275,7 @@ module "acr_core" {
   name                          = "acr${local.env}${local.owner}"
   resource_group_name           = module.rg_core.name
   location                      = local.location
-  sku                           = "Premium" # Required for Private Endpoint
+  sku                           = "Premium"
   public_network_access_enabled = false
   admin_enabled                 = false
   tags                          = local.common_tags
@@ -323,7 +314,6 @@ resource "azurerm_private_endpoint" "acr_pe" {
   tags = local.common_tags
 }
 
-# AKS Pull Permission
 resource "azurerm_role_assignment" "aks_acr_pull" {
   scope                = module.acr_core.id
   role_definition_name = "AcrPull"
@@ -334,7 +324,7 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
 # APP GATEWAY (WAF & TLS)
 # ---------------------------------------------------------
 
-# Managed Identity for App Gateway (TLS Key Vault Access)
+# Managed Identity for App Gateway
 resource "azurerm_user_assigned_identity" "agw_identity" {
   name                = "mi-appgw-${local.env}"
   resource_group_name = module.rg_core.name
@@ -348,7 +338,7 @@ resource "azurerm_role_assignment" "agw_kv_access" {
   principal_id         = azurerm_user_assigned_identity.agw_identity.principal_id
 }
 
-# Self-Signed Certificate for HTTPS
+# Self-Signed Certificate
 resource "azurerm_key_vault_certificate" "app_cert" {
   name         = "cert-hello-api-dev"
   key_vault_id = module.kv_core.id
@@ -381,16 +371,14 @@ resource "azurerm_key_vault_certificate" "app_cert" {
 module "app_gateway_core" {
   source = "../../modules/app-gateway"
 
-  name                = "agw-core-${local.env}"
-  location            = local.location
-  resource_group_name = module.rg_core.name
-  subnet_id           = module.vnet_core.subnet_ids["snet-appgw"]
-
+  name                 = "agw-core-${local.env}"
+  location             = local.location
+  resource_group_name  = module.rg_core.name
+  subnet_id            = module.vnet_core.subnet_ids["snet-appgw"]
   backend_port         = 30141
-  backend_ip_addresses = ["10.10.3.10"] # Ip of the node where NGINX is running
-
-  identity_ids = [azurerm_user_assigned_identity.agw_identity.id]
-
+  backend_ip_addresses = ["10.10.3.10"]
+  identity_ids         = [azurerm_user_assigned_identity.agw_identity.id]
+  
   ssl_certificates = [
     {
       name                = "cert-hello-dev"
@@ -437,12 +425,13 @@ resource "azurerm_network_security_rule" "allow_appgw_to_aks" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "30000-32767"
-  source_address_prefix       = "10.10.4.0/24" # App Gateway Subnet CIDR
+  source_address_prefix       = "10.10.4.0/24"
   destination_address_prefix  = "*"
   resource_group_name         = module.rg_core.name
   network_security_group_name = module.nsg_aks.nsg_name
 }
 
+# NSG for App Gateway
 module "nsg_appgw" {
   source              = "../../modules/nsg"
   name                = "nsg-appgw-${local.env}"
@@ -453,22 +442,35 @@ module "nsg_appgw" {
 
   security_rules = [
     {
-      name              = "AllowGatewayManager", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name = "AllowGatewayManager", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "65200-65535", source_address_prefix = "GatewayManager", destination_address_prefix = "*"
     },
     {
-      name              = "AllowInternetHTTP", priority = 110, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name = "AllowInternetHTTP", priority = 110, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "80", source_address_prefix = "Internet", destination_address_prefix = "*"
     },
     {
-      name              = "AllowInternetHTTPS", priority = 111, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name = "AllowInternetHTTPS", priority = 111, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "443", source_address_prefix = "Internet", destination_address_prefix = "*"
     },
     {
-      name              = "AllowAzureLoadBalancer", priority = 120, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name = "AllowAzureLoadBalancer", priority = 120, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "*", source_address_prefix = "AzureLoadBalancer", destination_address_prefix = "*"
     }
   ]
+}
+
+# NSG for Apps
+module "nsg_apps" {
+  source              = "../../modules/nsg"
+  name                = "nsg-apps-${local.env}"
+  location            = local.location
+  resource_group_name = module.rg_core.name
+  subnet_id           = module.vnet_core.subnet_ids["snet-apps"]
+  tags                = local.common_tags
+
+  # No specific rules for now
+  security_rules = []
 }
 
 # ---------------------------------------------------------
@@ -500,7 +502,7 @@ module "monitoring_stack" {
   grafana_admin_password = "DevGrafana123!"
 }
 
-# Workload Identity for App
+# Workload Identity
 module "hello_api_identity" {
   source                     = "../../modules/workload-identity"
   name                       = "mi-hello-api-${local.env}"
@@ -517,12 +519,8 @@ resource "kubernetes_service_account" "hello_api" {
   metadata {
     name      = "hello-api-sa"
     namespace = "apps"
-    labels = {
-      "azure.workload.identity/use" = "true"
-    }
-    annotations = {
-      "azure.workload.identity/client-id" = module.hello_api_identity.client_id
-    }
+    labels = { "azure.workload.identity/use" = "true" }
+    annotations = { "azure.workload.identity/client-id" = module.hello_api_identity.client_id }
   }
 }
 
@@ -535,7 +533,7 @@ module "sample_app" {
   image          = "${module.acr_core.login_server}/hello-api:dev"
   replicas       = 1
   container_port = 80
-
+  
   service_account_name       = kubernetes_service_account.hello_api.metadata[0].name
   secret_provider_class_name = "spc-hello-api"
   host                       = "hello-dev.local"
@@ -563,22 +561,18 @@ module "kube_rbac_apps" {
 }
 
 # ---------------------------------------------------------
-# SELF-HOSTED RUNNER (Multi-Region Infrastructure)
+# SELF-HOSTED RUNNER (Multi-Region)
 # ---------------------------------------------------------
 
-# Secondary VNet in East US 2 (Bypass capacity limits)
 module "vnet_runner" {
-  source = "../../modules/network"
-
+  source              = "../../modules/network"
   name                = "vnet-runner-${local.env}"
   location            = local.secondary_location
   resource_group_name = module.rg_core.name
   address_space       = ["10.20.0.0/16"]
 
   subnets = {
-    "snet-runner" = {
-      address_prefixes = ["10.20.1.0/24"]
-    }
+    "snet-runner" = { address_prefixes = ["10.20.1.0/24"] }
   }
   tags = local.common_tags
 }
@@ -598,7 +592,7 @@ resource "azurerm_virtual_network_peering" "runner_to_core" {
   remote_virtual_network_id = module.vnet_core.vnet_id
 }
 
-# DNS Link for Private Registry access in Secondary Region
+# DNS Link for Runner
 resource "azurerm_private_dns_zone_virtual_network_link" "acr_dns_link_runner" {
   name                  = "link-acr-runner-${local.env}"
   resource_group_name   = module.rg_core.name
@@ -623,19 +617,18 @@ resource "local_file" "public_key" {
   filename = "${path.module}/runner-key.pub"
 }
 
-# Runner Virtual Machine
+# VM Runner
 module "runner_vm" {
   source              = "../../modules/linux-vm"
   name                = "vm-runner-${local.env}"
   resource_group_name = module.rg_core.name
   location            = local.secondary_location
   subnet_id           = module.vnet_runner.subnet_ids["snet-runner"]
-  vm_size             = "Standard_B2s"
-
-  # Cloud-init script injection
-  custom_data        = filebase64("${path.module}/scripts/install-tools.sh")
-  public_key_content = tls_private_key.runner_ssh.public_key_openssh
-  tags               = local.common_tags
+  vm_size             = "Standard_B2s" # Kept in secondary region for capacity
+  
+  custom_data         = filebase64("${path.module}/scripts/install-tools.sh")
+  public_key_content  = tls_private_key.runner_ssh.public_key_openssh
+  tags                = local.common_tags
 }
 
 module "nsg_runner" {
@@ -648,7 +641,7 @@ module "nsg_runner" {
 
   security_rules = [
     {
-      name              = "AllowSSH", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
+      name = "AllowSSH", priority = 100, direction = "Inbound", access = "Allow", protocol = "Tcp"
       source_port_range = "*", destination_port_range = "22", source_address_prefix = var.ssh_source_ip, destination_address_prefix = "*"
     }
   ]
