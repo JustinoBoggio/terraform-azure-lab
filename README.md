@@ -16,30 +16,7 @@ This project implements a **Zero Trust** architecture using **Terraform**, **Azu
 
 The infrastructure is designed around a **Hub & Spoke** network topology (simulated via Global Peering) to ensure isolation and overcome regional capacity constraints.
 
-```mermaid
-graph TD
-    User((Internet User)) -->|HTTPS/443| WAF[App Gateway WAF v2]
-    
-    subgraph "Region A: East US (Core)"
-        WAF -->|Private VNet Traffic| AKS[AKS Cluster]
-        AKS -->|Workload Identity| KV[Key Vault]
-        AKS -->|Private Link| SQL[Azure SQL]
-        
-        subgraph "Private Network"
-            ACR[Azure Container Registry]
-            PE_ACR[Private Endpoint]
-        end
-    end
-    
-    subgraph "Region B: East US 2 (Ops)"
-        Runner[Self-Hosted Runner VM]
-    end
-    
-    %% Connections
-    Runner <==>|Global VNet Peering| ACR
-    GitHub[GitHub Actions Cloud] -.->|OIDC Control| Runner
-    AKS -.->|Pull Image| ACR
-```
+![Azure Enterprise Architecture](./assets/architecture-diagram.png)
 
 ## 🚀 Key Features
 
