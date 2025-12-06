@@ -15,7 +15,6 @@ permissions:
 
 jobs:
   build-and-push-dev:
-    #runs-on: ubuntu-latest
     runs-on: self-hosted 
 
     env:
@@ -47,18 +46,31 @@ jobs:
         run: |
           az acr login --name $env:ACR_NAME
 
-      - name: Build and push image
+      - name: Build image locally
         shell: pwsh
         run: |
-          Write-Host "ACR_LOGIN_SERVER: $env:ACR_LOGIN_SERVER"
-          Write-Host "IMAGE_NAME: $env:IMAGE_NAME"
-          Write-Host "IMAGE_TAG: $env:IMAGE_TAG"
+          $fullImageName = "{0}/{1}:{2}" -f $env:ACR_LOGIN_SERVER, $env:IMAGE_NAME, $env:IMAGE_TAG
+          Write-Host "Building image locally: $fullImageName"
+          
+          docker build -t $fullImageName ./apps/hello-api
+          
+          "SCAN_IMAGE=$fullImageName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-          $image = "{0}/{1}:{2}" -f $env:ACR_LOGIN_SERVER, $env:IMAGE_NAME, $env:IMAGE_TAG
-          Write-Host "Building image $image"
-
-          docker build -t $image ./apps/hello-api
-          docker push $image
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.SCAN_IMAGE }}
+          format: 'table'
+          exit-code: '1'           # Break the build on vulnerabilities found
+          ignore-unfixed: true     # Ignore unfixed vulnerabilities
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH' # Only stop on CRITICAL and HIGH vulnerabilities
+          
+      - name: Push image to ACR
+        shell: pwsh
+        run: |
+          Write-Host "Security check passed. Pushing image..."
+          docker push $env:SCAN_IMAGE
 
   deploy-dev:
     needs: build-and-push-dev
