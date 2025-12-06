@@ -1,19 +1,7 @@
-name: Terraform DEV Pipeline
+name: Terraform UAT Pipeline
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "live/dev/**"
-      - "modules/**"
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "live/dev/**"
-      - "modules/**"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   id-token: write   # Required for OIDC
@@ -27,13 +15,13 @@ env:
   ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
   ARM_USE_OIDC: "true"
   
-  TF_WORKING_DIR: 'live/dev'
+  TF_WORKING_DIR: 'live/uat'
   TF_VAR_ssh_source_ip: "${{ secrets.MY_HOME_IP }}"
   TF_VAR_admin_object_id: "78556030-0486-40a1-9317-3d2b67a5d68a"
   TF_VAR_pipeline_client_id: "${{ secrets.AZURE_CLIENT_ID }}"
 
 jobs:
-  terraform-dev:
+  terraform-uat:
     name: 'Terraform Plan & Apply'
     runs-on: ubuntu-latest
     defaults:

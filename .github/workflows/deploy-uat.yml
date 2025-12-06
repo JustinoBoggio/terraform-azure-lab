@@ -1,0 +1,47 @@
+name: Deploy to UAT (Promote)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Tag of the hello-api image to deploy to UAT'
+        required: true
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-uat:
+    runs-on: ubuntu-latest
+    environment: UAT
+
+    steps:
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.32.0"
+
+      - name: Get AKS credentials (UAT)
+        run: |
+          az aks get-credentials \
+            --resource-group rg-core-uat \
+            --name aks-core-uat \
+            --overwrite-existing
+
+      - name: Deploy to UAT
+        run: |
+          echo "Promoting hello-api:${{ inputs.image_tag }} image to UAT..."
+          
+          # We update the deployment with the new image
+          kubectl set image deployment/hello-api hello-api=acrdevjustino.azurecr.io/hello-api:${{ inputs.image_tag }} -n apps
+          
+          kubectl rollout status deployment/hello-api -n apps
